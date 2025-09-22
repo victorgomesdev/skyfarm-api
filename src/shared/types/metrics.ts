@@ -1,0 +1,1 @@
+export type Metrics = 'NDVI' | 'MOISTURE' | 'COLOR' | 'TEMP' | 'LAI' | 'PROD'
