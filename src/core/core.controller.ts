@@ -1,5 +1,5 @@
 import { CopernicusService } from "@copernicus/copernicus.service";
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { QueryRequestDto } from "@shared/dtos/query-request.dto";
 
 @Controller({
@@ -7,13 +7,12 @@ import { QueryRequestDto } from "@shared/dtos/query-request.dto";
 })
 export class CoreController {
 
-    constructor(private copernicus: CopernicusService) {
+    constructor(private copernicus: CopernicusService) { }
 
-    }
-
+    @HttpCode(HttpStatus.CREATED)
     @Post('query')
-    processQuery(@Body() body: QueryRequestDto) {
-        return this.copernicus.processQuery(body)
+    async processQuery(@Body() body: QueryRequestDto) {
+        return await this.copernicus.processQuery(body)
     }
 
     createProject() {

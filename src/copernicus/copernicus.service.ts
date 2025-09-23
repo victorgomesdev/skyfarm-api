@@ -1,17 +1,20 @@
-import { Inject, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { Inject, Injectable, InternalServerErrorException, Scope } from "@nestjs/common";
 import { HttpService } from '@nestjs/axios'
-import { QueryRequestDto } from "@shared/dtos/query-request.dto";
 import { CopernicusAuth } from "@copernicus/copernicus.auth.provider";
+import { QueryRequestDto } from "@shared/dtos/query-request.dto";
+import { Metrics } from "@shared/types/metrics";
 import { ndviBuilder } from "@shared/utils/ndvi-builder";
+import { createArea } from "@shared/utils/create-area.util";
+import { uploadImage } from "@shared/utils/upload-image.util";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { AxiosError } from "axios";
 import { catchError, firstValueFrom } from "rxjs";
-import { Metrics } from "@shared/types/metrics";
+import { saveMetrics } from "@shared/utils/save-metrics.util";
 
-@Injectable()
+@Injectable({ scope: Scope.REQUEST })
 export class CopernicusService {
 
-    private results: { NVDI: { image: string, stats: any } }
+    private token!: string
 
     constructor(
         private auth: CopernicusAuth,
@@ -20,28 +23,44 @@ export class CopernicusService {
         private sp: SupabaseClient
     ) { }
 
-    async processQuery(body: QueryRequestDto) {
+    async processQuery(body: QueryRequestDto): Promise<void> {
 
-        let token: string
-        token = this.auth.getToken()
+        this.token = this.auth.getToken()
 
-        this.http.axiosRef.defaults.headers.common["Authorization"] = `Bearer ${token}`
+        const areaId = await createArea(this.sp, body.projectId, body.coords, body.from, body.to)
+
+        const { error } = await this.sp.schema('skyfarm')
+            .from('metrics')
+            .insert({
+                area_id: areaId
+            })
+        if (error) throw new InternalServerErrorException(error.message);
 
         if (body.metrics.includes('NDVI')) {
             const { image, stats } = ndviBuilder(body.coords, body.from, body.to)
-            await this.getSatelliteData(image, stats, 'NDVI', body.projectId)
+            await this.getSatelliteData(image, stats, 'NDVI', body.projectId, areaId)
         }
     }
 
-    private async getSatelliteData(imagePayload: any, statsPayload: any, metric: Metrics, projectId: string): Promise<any> {
+    private async getSatelliteData(imagePayload: any, statsPayload: any, metric: Metrics, projectId: string, areaId: string): Promise<void> {
 
         const response = await Promise.all([
-            firstValueFrom(this.http.post<ArrayBuffer>("/process", imagePayload, { responseType: "arraybuffer" }).pipe(
-                catchError((err: AxiosError) => {
-                    throw new InternalServerErrorException()
-                })
-            )),
-            firstValueFrom(this.http.post<any>("/statistcs", statsPayload).pipe(
+            firstValueFrom(this.http.post<ArrayBuffer>("/process", imagePayload,
+                {
+                    responseType: "arraybuffer",
+                    headers: {
+                        "Authorization": `Bearer ${this.token}`
+                    }
+                }).pipe(
+                    catchError((err: AxiosError) => {
+                        throw new InternalServerErrorException()
+                    })
+                )),
+            firstValueFrom(this.http.post<any>("/statistics", statsPayload, {
+                headers: {
+                    "Authorization": `Bearer ${this.token}`
+                }
+            }).pipe(
                 catchError((err: AxiosError) => {
                     throw new InternalServerErrorException()
                 })
@@ -50,14 +69,13 @@ export class CopernicusService {
 
         const imageBuffer = Buffer.from(response[0].data)
 
-        const { data, error } = await this.sp
-            .storage
-            .from('projects/' + projectId)
-            .upload(metric + '', imageBuffer, { contentType: 'image/png', upsert: true })
-
-        if (error) {
+        await Promise.all([
+            uploadImage(this.sp, projectId, areaId, metric, imageBuffer),
+            saveMetrics(this.sp, areaId, metric, response[1].data)
+        ]).catch(() => {
             throw new InternalServerErrorException()
-        }
+        })
 
+        return
     }
 }
