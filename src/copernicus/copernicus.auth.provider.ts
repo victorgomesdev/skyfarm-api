@@ -1,8 +1,8 @@
-import { Injectable, OnApplicationBootstrap } from "@nestjs/common";
+import { Injectable, OnApplicationBootstrap, Scope } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 
-@Injectable()
+@Injectable({scope: Scope.REQUEST})
 export class CopernicusAuth implements OnApplicationBootstrap {
 
     private token!: string
