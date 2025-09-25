@@ -21,4 +21,7 @@ export class QueryRequestDto {
 
     @IsArray()
     metrics: Metrics[]
+
+    @IsUUID()
+    userId: string
 }
