@@ -12,8 +12,8 @@ export class CoreController {
     constructor(private copernicus: CopernicusService) { }
 
     @HttpCode(HttpStatus.CREATED)
-    @Post('query')
-    async createArea(@Body() body: QueryRequestDto, @Req() req) {
+    @Post('area/create')
+    async createArea(@Body() body: QueryRequestDto) {
         return await this.copernicus.processQuery(body)
     }
 

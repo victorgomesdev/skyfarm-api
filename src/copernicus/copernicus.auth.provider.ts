@@ -2,7 +2,7 @@ import { Injectable, OnApplicationBootstrap, Scope } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 
-@Injectable({scope: Scope.REQUEST})
+@Injectable()
 export class CopernicusAuth implements OnApplicationBootstrap {
 
     private token!: string
@@ -40,11 +40,11 @@ export class CopernicusAuth implements OnApplicationBootstrap {
         console.log(this.expiration)
     }
 
-    getToken(): string {
+    async getToken(): Promise<string> {
         if (!this.isTokenExpired()) {
             return this.token
         }
-        this.refreshToken()
+        await this.refreshToken()
         return this.token
     }
 
@@ -52,9 +52,9 @@ export class CopernicusAuth implements OnApplicationBootstrap {
         if (!this.expiration) return true;
 
         const now = Date.now();
-        const oneMinute = 60 * 1000;
+        const tenMinute = 60 * 1000 * 10;
 
-        return now >= this.expiration - oneMinute;
+        return now >= this.expiration - tenMinute;
     }
 
 }

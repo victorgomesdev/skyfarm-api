@@ -21,8 +21,7 @@ export class AuthGuard implements CanActivate {
         issuer: `${this.config.get('SB_URL')}/auth/v1`,
       });
 
-      (request as any).user = { userId: payload.sub };
-
+      if(payload.exp as number * 1000 > Date.now())  throw new UnauthorizedException()
       return true;
     } catch (err) {
       throw new UnauthorizedException('Token inválido ou expirado');
