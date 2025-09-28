@@ -15,7 +15,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
           baseURL: config.get('CP_DATA_URL') + '/api/v1'
         }
       },
-      inject: [ConfigService]
+      inject: [ConfigService],
+      global: true
     })
   ]
 })

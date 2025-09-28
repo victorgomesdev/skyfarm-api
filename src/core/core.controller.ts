@@ -13,8 +13,10 @@ export class CoreController {
 
     @HttpCode(HttpStatus.CREATED)
     @Post('area/create')
-    async createArea(@Body() body: QueryRequestDto) {
-        return await this.copernicus.processQuery(body)
+    async createArea(@Body() body: any) {
+        //return await this.copernicus.processQuery(body)
+
+        console.log(body)
     }
 
     createProject() {

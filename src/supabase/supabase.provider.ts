@@ -10,7 +10,7 @@ const SupabaseProvider: Provider = {
     useFactory: async (config: ConfigService): Promise<SupabaseClient> => {
 
         const url = config.get('SB_URL')
-        const secretKey = config.get('SB_SECRET_KEY')
+        const secretKey = config.get('SB_PRIVATE_KEY')
 
         return createClient(url, secretKey)
     }

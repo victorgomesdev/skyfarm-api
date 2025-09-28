@@ -25,7 +25,7 @@ export class CopernicusService {
 
     async processQuery(body: QueryRequestDto): Promise<void> {
 
-        this.token = this.auth.getToken()
+        this.token = await this.auth.getToken()
 
         const areaId = await createArea(this.sp, body.projectId, body.coords, body.from, body.to)
 
