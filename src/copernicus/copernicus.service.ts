@@ -23,13 +23,13 @@ export class CopernicusService {
         private sp: SupabaseClient
     ) { }
 
-    async processQuery(body: QueryRequestDto): Promise<void> {
+    async processQuery(body: QueryRequestDto): Promise<any> {
 
         this.token = await this.auth.getToken()
 
         const areaId = await createArea(this.sp, body.projectId, body.coords, body.from, body.to)
 
-        const { error } = await this.sp.schema('skyfarm')
+        const { error } = await this.sp.schema('public')
             .from('metrics')
             .insert({
                 area_id: areaId
@@ -40,6 +40,8 @@ export class CopernicusService {
             const { image, stats } = ndviBuilder(body.coords, body.from, body.to)
             await this.getSatelliteData(image, stats, 'NDVI', body.projectId, areaId)
         }
+
+        return { areaId }
     }
 
     private async getSatelliteData(imagePayload: any, statsPayload: any, metric: Metrics, projectId: string, areaId: string): Promise<void> {
@@ -57,6 +59,7 @@ export class CopernicusService {
                     })
                 )),
             firstValueFrom(this.http.post<any>("/statistics", statsPayload, {
+                responseType: 'json',
                 headers: {
                     "Authorization": `Bearer ${this.token}`
                 }

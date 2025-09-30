@@ -4,7 +4,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 
 export async function saveMetrics(sp: SupabaseClient, areaId: string, metric: Metrics, value: any) {
 
-    const { error } = await sp.schema('skyfarm')
+    const { error } = await sp.schema('public')
         .from('metrics')
         .update({
             [metric]: value
