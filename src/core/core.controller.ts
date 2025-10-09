@@ -26,6 +26,7 @@ export class CoreController {
     @Post('project/create')
     async createProject(@Body() body: ProjectDto, @Headers() h: any) {
 
+        console.log(body)
         return await this.core.createProject(body.name, h['authorization'])
     }
 

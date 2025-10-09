@@ -10,6 +10,7 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { AxiosError } from "axios";
 import { catchError, firstValueFrom } from "rxjs";
 import { saveMetrics } from "@shared/utils/save-metrics.util";
+import { parseStatisticalResponse } from "@shared/utils/parse-stats-response";
 
 @Injectable({ scope: Scope.REQUEST })
 export class CopernicusService {
@@ -23,62 +24,70 @@ export class CopernicusService {
         private sp: SupabaseClient
     ) { }
 
-    async processQuery(body: QueryRequestDto): Promise<any> {
+    async processQuery(body: any): Promise<any> {
 
         this.token = await this.auth.getToken()
 
-        const areaId = await createArea(this.sp, body.projectId, body.coords, body.from, body.to)
-
-        const { error } = await this.sp.schema('public')
-            .from('metrics')
-            .insert({
-                area_id: areaId
-            })
-        if (error) throw new InternalServerErrorException(error.message);
+        const { id } = await createArea(this.sp, body.name, body.project_id, body.coords, body.datefrom, body.dateto)
 
         if (body.metrics.includes('NDVI')) {
-            const { image, stats } = ndviBuilder(body.coords, body.from, body.to)
-            await this.getSatelliteData(image, stats, 'NDVI', body.projectId, areaId)
+            const { image, stats } = ndviBuilder(body.coords, body.datefrom, body.dateto, body.aggregation)
+            await this.getSatelliteData(image, stats, 'NDVI', body.project_id, id)
         }
 
-        return { areaId }
+        return { areaId: id }
     }
 
-    private async getSatelliteData(imagePayload: any, statsPayload: any, metric: Metrics, projectId: string, areaId: string): Promise<void> {
+    private async getSatelliteData(
+        imagePayload: any,
+        statsPayload: any,
+        metric: Metrics,
+        projectId: string,
+        areaId: string,
+    ): Promise<void> {
 
-        const response = await Promise.all([
-            firstValueFrom(this.http.post<ArrayBuffer>("/process", imagePayload,
-                {
-                    responseType: "arraybuffer",
+        const result = await Promise.all([
+            firstValueFrom(
+                this.http.post('/statistics', statsPayload, {
                     headers: {
-                        "Authorization": `Bearer ${this.token}`
+                        "Authorization": `Bearer ${this.token}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     }
                 }).pipe(
                     catchError((err: AxiosError) => {
-                        throw new InternalServerErrorException()
+                        console.log(err.response)
+                        throw new InternalServerErrorException('Erro ao salvar status.')
                     })
-                )),
-            firstValueFrom(this.http.post<any>("/statistics", statsPayload, {
-                responseType: 'json',
-                headers: {
-                    "Authorization": `Bearer ${this.token}`
-                }
-            }).pipe(
-                catchError((err: AxiosError) => {
-                    throw new InternalServerErrorException()
-                })
-            ))
+                )
+
+            ),
+            firstValueFrom(
+                this.http.post('/process', imagePayload, {
+                    responseType: 'arraybuffer',
+                    headers: {
+                        "Authorization": `Bearer ${this.token}`,
+                        "Accept": 'image/png',
+                        "Content-Type": 'application/json'
+                    }
+                }).pipe(
+                    catchError((err: AxiosError) => {
+                        console.log(err)
+                        throw new InternalServerErrorException('Erro ao gerar imagem')
+                    })
+                )
+            )
         ])
 
-        const imageBuffer = Buffer.from(response[0].data)
+        const imageBuffer = Buffer.from(result[1].data)
+        const parsedStats = parseStatisticalResponse(result[0].data)
 
         await Promise.all([
-            uploadImage(this.sp, projectId, areaId, metric, imageBuffer),
-            saveMetrics(this.sp, areaId, metric, response[1].data)
-        ]).catch(() => {
-            throw new InternalServerErrorException()
-        })
+            saveMetrics(this.sp, areaId, metric, parsedStats),
+            uploadImage(this.sp, projectId, areaId, metric, imageBuffer)
+        ])
 
         return
     }
+
 }

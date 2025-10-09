@@ -15,7 +15,7 @@ export class CoreService {
                 user_id: user_id
             })
 
-        if (error) throw new BadRequestException()
+        if (error) throw new BadRequestException(error)
         return
     }
 }
