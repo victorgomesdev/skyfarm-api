@@ -12,7 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
     HttpModule.registerAsync({
       useFactory: async (config: ConfigService)=> {
         return {
-          baseURL: config.get('CP_DATA_URL') + '/api/v1'
+          baseURL: config.get('CP_DATA_URL')
         }
       },
       inject: [ConfigService],

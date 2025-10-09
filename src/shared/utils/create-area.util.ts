@@ -1,20 +1,50 @@
 import { InternalServerErrorException } from "@nestjs/common";
-import { Coords } from "@shared/types/coords";
 import { SupabaseClient } from "@supabase/supabase-js";
 
-export async function createArea(sp: SupabaseClient, projectId: string, coords: Coords[], from: string, to: string): Promise<string> {
+export async function createArea(
+    sp: SupabaseClient,
+    name: string,
+    project_id: string,
+    coordinates: string,
+    datefrom: string,
+    dateto: string
+): Promise<any> {
 
-    const { error, data } = await sp.rpc('create_area', {
-        project_id: projectId,
-        coords: {
-            type: "Polygon",
-            coordinates: coords
-        },
-        dateFrom: from,
-        dateTo: to
-    });
+    let coordsArray: number[][] = JSON.parse(coordinates);
 
-    if (error) throw new InternalServerErrorException()
+    if (
+        coordsArray.length > 0 &&
+        (coordsArray[0][0] !== coordsArray[coordsArray.length - 1][0] ||
+            coordsArray[0][1] !== coordsArray[coordsArray.length - 1][1])
+    ) {
+        coordsArray.push([...coordsArray[0]]);
+    }
 
-    return data as string
+    const coords = {
+        type: "Polygon",
+        coordinates: [coordsArray]
+    };
+
+    try {
+        const { data, error } = await sp
+            .from('areas')
+            .insert([
+                {
+                    name,
+                    project_id,
+                    coords,
+                    datefrom,
+                    dateto
+                }
+            ])
+            .select();
+
+        if (error) {
+            throw new InternalServerErrorException('Erro ao criar a área');
+        }
+
+        return data[0];
+    } catch (err) {
+        throw new InternalServerErrorException('Erro ao criar a área');
+    }
 }
