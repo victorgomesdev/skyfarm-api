@@ -1,11 +1,10 @@
-import { Coords } from "@shared/types/coords";
 import { Metrics } from "@shared/types/metrics";
 import { IsArray, IsDateString, IsNumber, isString, IsString, IsUUID } from "class-validator";
 
 export class QueryRequestDto {
 
     @IsUUID("4")
-    projectId: string
+    project_id: string
 
     @IsString()
     name: string
@@ -14,10 +13,10 @@ export class QueryRequestDto {
     coords: string
 
     @IsDateString()
-    dateTo: string
+    dateto: string
 
     @IsDateString()
-    dateFrom: string
+    datefrom: string
 
     @IsNumber()
     aggregation: number
